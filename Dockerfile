@@ -10,6 +10,6 @@ RUN bash gradlew buildFatJar
 WORKDIR /run
 RUN cp /src/build/libs/*.jar /run/auth-server.jar
 
-EXPOSE 8081
+EXPOSE 8081:8081
 
 CMD java -jar /run/auth-server.jar
