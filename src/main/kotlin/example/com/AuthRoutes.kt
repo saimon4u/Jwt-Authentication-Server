@@ -28,8 +28,17 @@ fun Route.signUp(
         }
         val areFieldsBlank = request.userName.isBlank() || request.password.isBlank()
         val isPasswordShort = request.password.length < 6
-        if(areFieldsBlank || isPasswordShort) {
-            call.respond(HttpStatusCode.Conflict)
+        if(areFieldsBlank) {
+            call.respond(HttpStatusCode.BadRequest, "Username or password can't be blank.")
+            return@post
+        }
+        if(isPasswordShort){
+            call.respond(HttpStatusCode.NotAcceptable, "Password must be 6 character long.")
+            return@post
+        }
+        val storedUser = userDataSource.getUserByUsername(request.userName)
+        if(storedUser != null){
+            call.respond(HttpStatusCode.Conflict, "Username already in use.")
             return@post
         }
         val saltedHash = hashingService.generateSaltedHash(
@@ -42,10 +51,10 @@ fun Route.signUp(
         )
         val wasAcknowledge = userDataSource.insertNewUser(user)
         if(!wasAcknowledge){
-            call.respond(HttpStatusCode.Conflict)
+            call.respond(HttpStatusCode.InternalServerError, "An unknown error occurred.")
             return@post
         }
-        call.respond(HttpStatusCode.OK)
+        call.respond(HttpStatusCode.OK, "User created with credential.")
     }
 }
 
@@ -62,7 +71,7 @@ fun Route.signIn(
         }
         val user = userDataSource.getUserByUsername(request.userName)
         if(user == null){
-            call.respond(HttpStatusCode.Conflict, "Incorrect username!!")
+            call.respond(HttpStatusCode.NotFound, "Incorrect username!!")
             return@post
         }
         val isValidPassword = hashingService.verifyHash(
@@ -73,7 +82,7 @@ fun Route.signIn(
             )
         )
         if(!isValidPassword){
-            call.respond(HttpStatusCode.Conflict, "Incorrect Password!!")
+            call.respond(HttpStatusCode.Unauthorized, "Incorrect Password!!")
             return@post
         }
         val token = tokenService.generate(
@@ -105,7 +114,7 @@ fun Route.getSecretInfo(){
         get("secret"){
             val principal = call.principal<JWTPrincipal>()
             val userId = principal?.getClaim("userId", String::class)
-            call.respond(HttpStatusCode.OK, "Your userId is $userId")
+            call.respond(HttpStatusCode.OK, userId.toString())
         }
     }
 }
